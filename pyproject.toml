@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "sqlite-dataset"
-version = "0.2.0"
+version = "0.3.0"
 description = "Use SQLite database to store datasets."
 authors = ["Jinshuai Ma <mayazureee@gmail.com>"]
 readme = "README.md"
