@@ -1,13 +1,13 @@
 [tool.poetry]
 name = "sqlite-dataset"
-version = "0.1.0"
+version = "0.2.0"
 description = "Use SQLite database to store datasets."
 authors = ["Jinshuai Ma <mayazureee@gmail.com>"]
 readme = "README.md"
 packages = [{include = "sqlite_dataset"}]
 
 [tool.poetry.dependencies]
-python = "^3.10"
+python = "^3.7"
 sqlalchemy = "^2.0"
 
 
