@@ -5,6 +5,8 @@ description = "Use SQLite database to store datasets."
 authors = ["Jinshuai Ma <mayazureee@gmail.com>"]
 readme = "README.md"
 packages = [{include = "sqlite_dataset"}]
+license = "MIT"
+repository = "https://github.com/Mayazure/sqlite-dataset"
 
 [tool.poetry.dependencies]
 python = "^3.7"
