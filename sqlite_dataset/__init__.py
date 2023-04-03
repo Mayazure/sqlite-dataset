@@ -1,1 +1,1 @@
-from dataset import SQLiteDataset
+from .dataset import SQLiteDataset
