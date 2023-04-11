@@ -1,3 +1,4 @@
+import copy
 import os.path
 import warnings
 
@@ -82,7 +83,7 @@ class SQLiteDataset(object):
 
     def add_tables(self, tables: dict[str, list[Column]]):
         for name, cols in tables.items():
-            Table(name, self.metadata, *cols)
+            Table(name, self.metadata, *copy.deepcopy(cols))
 
     def delete_table(self, name: str):
         self.delete_tables([name])
@@ -106,7 +107,7 @@ class SQLiteDataset(object):
         else:
             stmt = select(self.get_table(table))
         if type(limit) == int and limit > 0:
-            stmt.limit(limit)
+            stmt = stmt.limit(limit)
 
         if chunk:
             def iterator(chk, itr, rt=False):
