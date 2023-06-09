@@ -1,40 +1,82 @@
-import copy
-import os.path
+import inspect
+import os
 import warnings
+from collections import OrderedDict
 
 from sqlalchemy import MetaData, Table, insert, Column, select, text
 
+from sqlite_dataset.fields import Field
 from sqlite_dataset.utils import create_sqlite_db_engine
 
 
-class SQLiteDataset(object):
-    schema = None
+def _get_fields_by_mro(klass):
+    mro = inspect.getmro(klass)
+    return sum(
+        (
+            _get_fields(
+                getattr(base, "_declared_fields", base.__dict__)
+            )
+            for base in mro[:0:-1]
+        ),
+        [],
+    )
+
+
+def is_field_class(val):
+    try:
+        return issubclass(val, Field)
+    except TypeError:
+        return isinstance(val, Field)
+
+
+def _get_fields(attrs):
+    fields = [
+        (field_name, field_value)
+        for field_name, field_value in attrs.items()
+        if is_field_class(field_value)
+    ]
+    return fields
+
+
+class DatasetMeta(type):
+
+    def __new__(mcs, name, bases, attrs):
+        cls_fields = _get_fields(attrs)
+        for field_name, _ in cls_fields:
+            del attrs[field_name]
+        klass = super().__new__(mcs, name, bases, attrs)
+        inherited_fields = _get_fields_by_mro(klass)
+        klass._declared_fields = mcs.get_declared_fields(
+            cls_fields=cls_fields,
+            inherited_fields=inherited_fields,
+        )
+        return klass
 
     @classmethod
-    def create(cls, db_path, schema=None):
-        if cls.schema is None and schema is None:
-            raise ValueError(
-                'Schema not found. To create a dataset, either override the schema field or pass in a schema when '
-                'calling create(db_path, schema=schema). To load an existing dataset without specifying schema, '
-                'or create an empty dataset to use with pandas, instantiate SQLiteDataset(db_path) directly.'
-            )
-        db = cls(db_path, schema=schema)
-        db.build()
-        return db
+    def get_declared_fields(
+            mcs,
+            cls_fields: list,
+            inherited_fields: list
+    ):
+        return OrderedDict(inherited_fields + cls_fields)
 
-    def __init__(self, db_path, schema=None):
+
+class SQLiteDataset(object, metaclass=DatasetMeta):
+
+    def __init__(self, db_path):
         self.db_path = db_path
         self.engine = create_sqlite_db_engine(db_path)
         self.metadata = MetaData()
-        if schema is not None:
-            self.schema = schema
-        if self.schema is not None:
+        self.schema = {}
+
+        if self._declared_fields:
+            for name, field in self._declared_fields.items():
+                if not self.schema.get(field.tablename):
+                    self.schema[field.tablename] = []
+                self.schema[field.tablename].append(field.new_column(name=name))
             self.add_tables(self.schema)
-        elif not os.path.exists(self.db_path):
-            warnings.warn(
-                'Database file does not exist. To to create a dataset, call create(db_path). '
-                'Refer to documentation for more details.'
-            )
+            if not os.path.exists(self.db_path):
+                self.build()
         else:
             self.reflect()
         self.db_connection = None
@@ -83,7 +125,7 @@ class SQLiteDataset(object):
 
     def add_tables(self, tables: dict[str, list[Column]]):
         for name, cols in tables.items():
-            Table(name, self.metadata, *copy.deepcopy(cols))
+            Table(name, self.metadata, *cols)
 
     def delete_table(self, name: str):
         self.delete_tables([name])

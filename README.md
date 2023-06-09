@@ -8,54 +8,110 @@ The core of sqlite-dataset is the Class **SQLiteDataset**, which wraps a SQLAlch
 
 ## Usage
 
-### Create a new dataset
+### Declare a dataset
 
-A **schema** is required to create a new dataset. The **schema** should be a dictionary where each item is a column.
-
-There are two ways to specify the schema:
-
-1. Extend the base **SQLiteDataset** class and override the **schema** field.
+To declare a dataset, extend the base **SQLiteDataset** class and specify fields.
 
 ```python
-from sqlite_dataset import SQLiteDataset
-from sqlalchemy import Column, String, Float
+from sqlite_dataset import SQLiteDataset, Field, String, Float
 
 class MyIrisDataset(SQLiteDataset):
-    schema = {
-        'iris': [
-            Column('sepal_length_cm', String),
-            Column('sepal_width_cm', Float),
-            Column('petal_length_cm', Float),
-            Column('petal_width_cm', Float),
-            Column('class', String),
-        ]
-    }
+    
+    sepal_length_cm = Field(String, tablename='iris')
+    sepal_width_cm = Field(Float, tablename='iris')
+    petal_length_cm = Field(Float, tablename='iris')
+    petal_width_cm = Field(Float, tablename='iris')
+    class_field = Field(String, tablename='iris', name='class')
 
-ds = MyIrisDataset.create('test.db')
+ds = MyIrisDataset('my_iris_dataset.db')
 ```
 
-2. Pass schema to `SQLiteDataset.create()`
+This will create a sqlite database file on the specified path. If a dataset already exists, it will then be loaded. 
+
+#### The *Field* object
+
+`Field` can be seen as a factory that can create a SQLAlchemy's Column object.
+
+The `Field` object's constructor takes same arguments as `sqlalchemy.schema.Column` with the difference that `Field` does not take positional name argument and has an extra keyword argument `tablename`.
+
+Declare a Column using sqlalchemy.Column:
 
 ```python
-schema = {
-    'iris': [
-        Column('sepal_length_cm', String),
-        Column('sepal_width_cm', Float),
-        Column('petal_length_cm', Float),
-        Column('petal_width_cm', Float),
-        Column('class', String),
-    ]
-}
-ds = SQLiteDataset.create('test.db', schema=schema)
+from sqlalchemy import Column, String
+
+Column('sepal_length_cm', String)
+Column(name='sepal_length_cm', type_=String)
 ```
 
-Be aware that the schema passed to `SQLiteDataset.create()` will override the class field schema.
+Declare a sqlite_dataset.Field:
+
+```python
+from sqlite_dataset import Field, String
+
+sepal_length_cm = Field(String)
+```
+
+The variable name will be automatically used as the column name.
+
+Column name can also be specified using `name` argument, which is useful if the column name is a Python preserved keyword:
+
+```python
+from sqlite_dataset import SQLiteDataset, Field, String
+
+class MyDataset(SQLiteDataset):
+    class_field = Field(String, name='class')
+    type_field = Field(String, name='type')
+```
+
+Table name can be specified using `tablename` keyword argument:
+
+```python
+from sqlite_dataset import SQLiteDataset, Field, String
+
+class MyDataset(SQLiteDataset):
+    class_field = Field(String, name='class', tablename='table1')
+    type_field = Field(String, name='type', tablename='table2')
+```
+
+This will create two tables: table1, table2.
+
+If tablename is not specified, the column will be created in default table **data**. 
+
+#### Field type and keyword arguments
+
+The field type is the sqlalchemy column type. All sqlalchemy members were imported into sqlite_dataset.
+
+```python
+from sqlalchemy import String, Integer
+```
+
+is exactly the same as:
+
+```python
+from sqlite_dataset import String, Integer
+```
+
+### Inheritance
+
+Dataset can be inherited.
+
+```python
+from sqlite_dataset import SQLiteDataset, Field, String, Float
+
+class BaseDataset(SQLiteDataset):
+    class_field = Field(String, tablename='iris', name='class')
+    example_field = Field(String, tablename='example_table')
+
+class ChildDataset(BaseDataset): 
+    sepal_length_cm = Field(String, tablename='iris')
+    sepal_width_cm = Field(Float, tablename='iris')
+    petal_length_cm = Field(Float, tablename='iris')
+    petal_width_cm = Field(Float, tablename='iris')
+```
 
 ### Connect to an existing dataset
 
-An existing dataset could be one created by calling `SQLiteDataset.create()` as shown above, or could be any SQLite database file.
-
-To connect to a dataset, call the `connect()` method and `close()` after complete all tasks.
+To connect to a dataset, call the `connect()` method. Call `close()` to close it.
 
 ```python
 ds = SQLiteDataset('test.db')
@@ -74,33 +130,9 @@ with SQLiteDataset('test.db') as ds:
 
 ### Schema for existing dataset
 
-**SQLiteDataset** object uses SQLAlchemy connection under the hood, soa schema is required to make any database queries or operations.
-
-The way to specify schema for an existing dataset is similar to *create a new dataset*.
-
-If it's a class extending the base SQLiteDataset class, and overrides the schema field, then this schema will be used.
-
-```python
-with MyIrisDataset('test.db') as ds:
-    pass
-```
-
-Or a schema can be passed into the class constructor. The schema passed into the constructor will always override the class field schema.
-
-```python
-with MyIrisDataset('test.db', schema=schema) as ds:
-    pass
-
-with SQLiteDataset('test.db', schema=schema) as ds:
-    pass
-```
+**SQLiteDataset** object uses SQLAlchemy connection under the hood, so a schema is required to make any database queries or operations.
 
 If no schema provided by either of the above, a [SQLAlchemy **reflection**](https://docs.sqlalchemy.org/en/13/core/reflection.html) is performed to load and parse schema from the existing database.
-
-```python
-with SQLiteDataset('test.db') as ds:
-    pass
-```
 
 It is recommended to explicitly define the schema as **reflection** may have performance issue in some cases if the schema is very large and complex.
 
