@@ -5,7 +5,7 @@ from collections import OrderedDict
 
 from sqlalchemy import MetaData, Table, insert, Column, select, text
 
-from sqlite_dataset.fields import Field
+from sqlite_dataset.fields import Field, DataTable
 from sqlite_dataset.utils import create_sqlite_db_engine
 
 
@@ -22,11 +22,19 @@ def _get_fields_by_mro(klass):
     )
 
 
-def is_field_class(val):
+def is_class(val, klass):
     try:
-        return issubclass(val, Field)
+        return issubclass(val, klass)
     except TypeError:
-        return isinstance(val, Field)
+        return isinstance(val, klass)
+
+
+def is_field_class(val):
+    return is_class(val, Field)
+
+
+def is_table_class(val):
+    return is_class(val, DataTable)
 
 
 def _get_fields(attrs):
@@ -38,16 +46,31 @@ def _get_fields(attrs):
     return fields
 
 
+def _get_table_fields(attrs):
+    table_fields = []
+    for table_name, table_value in attrs.items():
+        if is_table_class(table_value):
+            use_tablename = table_value.tablename or table_name
+            for (field_name, field_value) in table_value.fields:
+                field_value.tablename = use_tablename
+                table_fields.append((field_name, field_value))
+    return table_fields
+
+
 class DatasetMeta(type):
 
     def __new__(mcs, name, bases, attrs):
+        __defaulttable__ = attrs.get('__defaulttable__', 'data')
         cls_fields = _get_fields(attrs)
-        for field_name, _ in cls_fields:
+        table_fields = _get_table_fields(attrs)
+        for field_name, field_col in cls_fields:
+            if field_col.tablename is None:
+                field_col.tablename = __defaulttable__
             del attrs[field_name]
         klass = super().__new__(mcs, name, bases, attrs)
         inherited_fields = _get_fields_by_mro(klass)
         klass._declared_fields = mcs.get_declared_fields(
-            cls_fields=cls_fields,
+            cls_fields=[*cls_fields, *table_fields],
             inherited_fields=inherited_fields,
         )
         return klass

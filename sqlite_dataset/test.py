@@ -1,18 +1,26 @@
 import pandas as pd
 
 from sqlite_dataset import SQLiteDataset, Field, String, Float
+from sqlite_dataset.fields import DataTable
 
 
 class MyBaseIrisDataset(SQLiteDataset):
-    text = Field(String, tablename='sentence')
-    sepal_length_cm = Field(String, tablename='iris')
+    __defaulttable__ = 'sentence'
+
+    text = Field(String)
+    iris = DataTable(
+        sepal_length_cm=Field(String, tablename='iris')
+    )
 
 
 class MyIrisDataset(MyBaseIrisDataset):
-    sepal_width_cm = Field(Float, tablename='iris')
-    petal_length_cm = Field(Float, tablename='iris')
-    petal_width_cm = Field(Float, tablename='iris')
-    class_field = Field(String, name='class', tablename='iris')
+    iris = DataTable(
+        sepal_width_cm=Field(Float),
+        petal_length_cm=Field(Float),
+        petal_width_cm=Field(Float),
+        class_field=Field(String, name='class')
+    )
+
 
 data = [
     {
@@ -43,7 +51,7 @@ with MyIrisDataset('iris.db') as ds:
     res = ds.read_data('iris')
     print(res)
 
-import seaborn as sns
+# import seaborn as sns
 
 # df = sns.load_dataset('iris')
 # with MyIrisDataset('iris11.db') as ds:
