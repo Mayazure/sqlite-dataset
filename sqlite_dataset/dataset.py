@@ -53,7 +53,9 @@ def _get_table_fields(attrs):
             use_tablename = table_value.tablename or table_name
             for (field_name, field_value) in table_value.fields:
                 field_value.tablename = use_tablename
-                table_fields.append((field_name, field_value))
+                if field_value.name is None:
+                    field_value.name = field_name
+                table_fields.append((f'{table_name}_{field_name}', field_value))
     return table_fields
 
 
