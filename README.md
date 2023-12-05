@@ -28,6 +28,21 @@ ds = MyIrisDataset('my_iris_dataset.db')
 
 This will create a sqlite database file on the specified path. If a dataset already exists, it will then be loaded. 
 
+```python
+from sqlite_dataset import SQLiteDataset, Field, String, Float
+from sqlite_dataset.fields import DataTable
+
+class ManifestoCorpusTrained(SQLiteDataset):
+
+    sentences = DataTable(
+        sepal_length_cm = Field(String),
+        sepal_width_cm = Field(Float),
+        petal_length_cm = Field(Float),
+        petal_width_cm = Field(Float),
+        class_field = Field(String, name='class')
+    )
+```
+
 #### The *Field* object
 
 `Field` can be seen as a factory that can create a SQLAlchemy's Column object.
